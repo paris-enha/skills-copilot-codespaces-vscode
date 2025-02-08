@@ -1,0 +1,164 @@
+npm install -g expo-cli
+expo init SkincareApp
+cd SkincareApp
+npm install @tensorflow/tfjs @tensorflow/tfjs-react-native @react-native-community/cameraroll @react-navigation/native react-navigation react-native-gesture-handler
+// SkinTypeSelector.js
+
+import React, { useState } from 'react';
+import { View, Text, Button, StyleSheet, Picker } from 'react-native';
+
+const SkinTypeSelector = ({ onSkinTypeSelect }) => {
+  const [skinType, setSkinType] = useState('');
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Select your skin type:</Text>
+      <Picker
+        selectedValue={skinType}
+        onValueChange={(itemValue) => setSkinType(itemValue)}
+      >
+        <Picker.Item label="Oily" value="oily" />
+        <Picker.Item label="Dry" value="dry" />
+        <Picker.Item label="Combination" value="combination" />
+        <Picker.Item label="Sensitive" value="sensitive" />
+      </Picker>
+      <Button
+        title="Get Tips"
+        onPress={() => onSkinTypeSelect(skinType)}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  text: {
+    fontSize: 20,
+    marginBottom: 10,
+  },
+});
+
+export default SkinTypeSelector;
+// FacialScanner.js
+
+import React, { useState, useEffect } from 'react';
+import { View, Text, Button, StyleSheet } from 'react-native';
+import * as tf from '@tensorflow/tfjs';
+import { Camera } from 'expo-camera';
+import { FaceDetector } from 'expo-face-detector';
+
+const FacialScanner = ({ onFaceDetected }) => {
+  const [hasPermission, setHasPermission] = useState(null);
+  const [faces, setFaces] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Camera.requestPermissionsAsync();
+      setHasPermission(status === 'granted');
+    })();
+  }, []);
+
+  const handleFaceDetection = ({ faces }) => {
+    if (faces.length > 0) {
+      setFaces(faces);
+      onFaceDetected(faces);
+    }
+  };
+
+  if (hasPermission === null) {
+    return <Text>Requesting for camera permission</Text>;
+  }
+  if (hasPermission === false) {
+    return <Text>No access to camera</Text>;
+  }
+
+  return (
+    <View style={styles.container}>
+      <Camera
+        style={styles.camera}
+        onFacesDetected={handleFaceDetection}
+        faceDetectorSettings={{
+          mode: FaceDetector.Mode.fast,
+          detectLandmarks: FaceDetector.Landmarks.all,
+          runClassifications: FaceDetector.Classifications.all,
+        }}
+      />
+      <Button
+        title="Analyze Face"
+        onPress={() => {
+          if (faces.length > 0) {
+            onFaceDetected(faces);
+          }
+        }}
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  camera: {
+    width: '100%',
+    height: '80%',
+  },
+});
+
+export default FacialScanner;
+// App.js
+
+import React, { useState } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import SkinTypeSelector from './SkinTypeSelector';
+import FacialScanner from './FacialScanner';
+
+const App = () => {
+  const [skinType, setSkinType] = useState('');
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
+
+  const fetchSkincareTips = (type) => {
+    // Fetch tips based on skin type, here we just return static content for simplicity.
+    switch (type) {
+      case 'oily':
+        return 'Use a gentle cleanser and oil-free moisturizer.';
+      case 'dry':
+        return 'Try a hydrating facial mask and avoid harsh cleansers.';
+      case 'combination':
+        return 'Use a balanced skincare routine with both moisturizing and oil-controlling products.';
+      case 'sensitive':
+        return 'Opt for hypoallergenic products and avoid exfoliating too much.';
+      default:
+        return 'Please select a skin type or use the facial scanner.';
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {!isFaceDetected ? (
+        <>
+          <SkinTypeSelector onSkinTypeSelect={(type) => setSkinType(type)} />
+          {skinType && <Text>{fetchSkincareTips(skinType)}</Text>}
+        </>
+      ) : (
+        <FacialScanner onFaceDetected={() => setIsFaceDetected(true)} />
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
+
+export default App;
